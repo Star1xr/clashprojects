@@ -101,8 +101,8 @@ const handleTokenExchange = async (code: string) => {
         throw new Error(`GitHub Profile Error: ${userRes.status}`);
       }
 
-      // 2. Fetch Repos
-      const reposRes = await fetch('https://api.github.com/user/repos?sort=updated&per_page=100', {
+      // 2. Fetch Repos (Public Only)
+      const reposRes = await fetch('https://api.github.com/user/repos?type=public&sort=updated&per_page=100', {
         headers: { 
           'Authorization': `Bearer ${token}`,
           'Accept': 'application/json'
@@ -113,9 +113,9 @@ const handleTokenExchange = async (code: string) => {
         ? reposData.map((r: any) => ({ name: r.name, stars: r.stargazers_count }))
         : [];
 
-      // 3. Fetch Recent Commits (via Events)
-      // Increase per_page to 100 to find real PushEvents in a busy stream
-      const eventsRes = await fetch(`https://api.github.com/users/${user.login}/events`, {
+      // 3. Fetch Recent Commits (Public Only via Events for real-time accuracy)
+      console.log("Fetching latest public activity for:", user.login);
+      const eventsRes = await fetch(`https://api.github.com/users/${user.login}/events/public?per_page=50`, {
         headers: { 
           'Authorization': `Bearer ${token}`,
           'Accept': 'application/json'
@@ -123,33 +123,43 @@ const handleTokenExchange = async (code: string) => {
       });
       const eventsData = await eventsRes.json();
       
-      const realPushEvents = Array.isArray(eventsData)
+      const pushEvents = Array.isArray(eventsData)
         ? eventsData.filter((e: any) => e.type === "PushEvent")
         : [];
 
-      const commits = realPushEvents.slice(0, 5).map((e: any) => {
-        const fullRepoName = e.repo?.name;
-        const commitsInPayload = e.payload?.commits || [];
-        const msg = commitsInPayload.length > 0 ? commitsInPayload[0].message : "Commit activity";
-        const sha = commitsInPayload.length > 0 ? commitsInPayload[0].sha : e.payload?.head;
+      // Extract unique SHAs and fetch their messages if not in payload
+      const commits = await Promise.all(
+        pushEvents.slice(0, 5).map(async (e: any) => {
+          const repoFullName = e.repo?.name;
+          const commitInPayload = e.payload?.commits?.[0];
+          
+          let message = commitInPayload?.message;
+          let sha = commitInPayload?.sha || e.payload?.head;
 
-        return {
-          repo: fullRepoName?.split('/')[1] || fullRepoName || "unknown-repo",
-          msg: msg,
-          date: e.created_at,
-          url: sha ? `https://github.com/${fullRepoName}/commit/${sha}` : `https://github.com/${fullRepoName}`
-        };
-      });
+          // If message is missing or generic, try to fetch from the commit API
+          if (!message || message.length < 5 || message === "Commit activity") {
+             try {
+               const commitRes = await fetch(`https://api.github.com/repos/${repoFullName}/commits/${sha}`, {
+                 headers: { 'Authorization': `Bearer ${token}` }
+               });
+               const commitData = await commitRes.json();
+               message = commitData.commit?.message || message;
+             } catch (err) {
+               console.warn("Could not fetch extra commit detail", err);
+             }
+          }
 
-      // Fallback if no PushEvents found
-      const finalCommits = commits.length > 0 ? commits : (Array.isArray(eventsData) ? eventsData.slice(0, 5).map((e: any) => ({
-        repo: e.repo?.name?.split('/')[1] || "Activity",
-        msg: `${e.type.replace('Event', '')} activity`,
-        date: e.created_at,
-        url: `https://github.com/${e.repo?.name}`
-      })) : []);
+          return {
+            repo: repoFullName?.split('/')[1] || repoFullName,
+            msg: message?.split('\n')[0] || "Push activity",
+            date: e.created_at,
+            url: `https://github.com/${repoFullName}/commit/${sha}`
+          };
+        })
+      );
 
-      setGithubData({ user, repos, commits: finalCommits });
+      console.log("Final live commits:", commits);
+      setGithubData({ user, repos, commits: commits.length > 0 ? commits : [] });
       setIsLoggedIn(true);
       setError(null);
     } catch (err: any) {
