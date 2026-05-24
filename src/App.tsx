@@ -47,38 +47,43 @@ function App() {
       fetchRealGithubData(savedToken);
     }
   }, []);
+const handleTokenExchange = async (code: string) => {
+  setIsLoading(true);
+  setError(null);
+  try {
+    // Use relative path for production (Vercel), or localhost for dev
+    const apiUrl = import.meta.env.PROD ? '/api/authenticate' : 'http://localhost:8000/authenticate';
 
-  const handleTokenExchange = async (code: string) => {
-    setIsLoading(true);
-    setError(null);
-    try {
-      const response = await fetch('http://localhost:8000/authenticate', {
-        method: 'POST',
-        headers: {
-          'Accept': 'application/json',
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({ code: code })
-      });
+    const response = await fetch(apiUrl, {
+      method: 'POST',
+      headers: {
+        'Accept': 'application/json',
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({ code: code })
+    });
 
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.detail || "Backend authentication failed");
-      }
-      
-      const data = await response.json();
-      if (data.access_token) {
-        localStorage.setItem('github_token', data.access_token);
-        fetchRealGithubData(data.access_token);
-      } else {
-        throw new Error("No access token returned from backend");
-      }
-    } catch (err: any) {
-      console.error("Auth Error:", err);
-      setError("Backend Error: Make sure your Python server is running on port 8000. Error: " + err.message);
-      setIsLoading(false);
+    if (!response.ok) {
+      const errorData = await response.json();
+      throw new Error(errorData.detail || "Backend authentication failed");
     }
-  };
+
+    const data = await response.json();
+    if (data.access_token) {
+      localStorage.setItem('github_token', data.access_token);
+      fetchRealGithubData(data.access_token);
+    } else {
+      throw new Error("No access token returned from backend");
+    }
+  } catch (err: any) {
+    console.error("Auth Error:", err);
+    const isDev = !import.meta.env.PROD;
+    setError(isDev 
+      ? "Local Dev Error: Make sure your Python server is running on port 8000." 
+      : "Production Error: The Vercel backend is not responding. Check your environment variables.");
+    setIsLoading(false);
+  }
+};
 
   const fetchRealGithubData = async (token: string) => {
     setIsLoading(true);
