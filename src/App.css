@@ -23,7 +23,7 @@
   top: 0;
   z-index: 100;
   box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
-  gap: 2rem;
+  gap: 1rem;
 }
 
 .header-left {
@@ -57,6 +57,7 @@
   overflow-x: hidden;
 }
 
+/* HERO SECTION */
 .hero-section {
   min-height: 70vh;
   display: flex;
@@ -65,7 +66,7 @@
   align-items: center;
   text-align: center;
   padding: 4rem 5%;
-  max-width: 1000px;
+  max-width: 1100px;
   margin: 0 auto;
 }
 
@@ -76,14 +77,14 @@
 }
 
 .hero-content h1 {
-  font-size: 5rem;
+  font-size: clamp(2.5rem, 8vw, 5rem);
   line-height: 1;
   margin-bottom: 2rem;
   font-weight: 900;
 }
 
 .hero-content p {
-  font-size: 1.5rem;
+  font-size: clamp(1rem, 3vw, 1.5rem);
   max-width: 700px;
   opacity: 0.8;
   margin-bottom: 3.5rem;
@@ -98,6 +99,7 @@
   justify-content: center;
 }
 
+/* FEATURES SECTION */
 .features-section {
   padding: 8rem 5%;
   max-width: 1400px;
@@ -115,7 +117,7 @@
 }
 
 .section-header h2 {
-  font-size: 3rem;
+  font-size: clamp(2rem, 5vw, 3rem);
   font-weight: 900;
   margin-bottom: 0.5rem;
 }
@@ -131,8 +133,8 @@
 
 .cards-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
-  gap: 3rem;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: clamp(1.5rem, 4vw, 3rem);
   width: 100%;
 }
 
@@ -143,28 +145,64 @@
   font-size: 0.9rem;
 }
 
+/* TABLET SUPPORT (up to 1024px) */
 @media (max-width: 1024px) {
+  .app-header {
+    padding: 0.75rem 3%;
+  }
+  
   .hero-section {
-    flex-direction: column;
-    text-align: center;
-    padding-top: 2rem;
+    padding: 4rem 5%;
     min-height: auto;
   }
-  
-  .hero-content h1 {
-    font-size: 3rem;
+
+  .features-section {
+    padding: 6rem 5%;
   }
-  
+}
+
+/* MOBILE SUPPORT (up to 768px) */
+@media (max-width: 768px) {
+  .app-header {
+    flex-wrap: wrap;
+    gap: 0.5rem;
+    padding: 1rem 5%;
+  }
+
+  .header-left, .header-right {
+    flex: 1;
+    min-width: 120px;
+  }
+
+  .header-center {
+    order: 3;
+    flex: none;
+    width: 100%;
+    max-width: 100%;
+    margin-top: 0.5rem;
+  }
+
+  .logo {
+    font-size: 1.25rem;
+  }
+
+  .hero-section {
+    padding: 3rem 5%;
+  }
+
   .hero-actions {
-    justify-content: center;
+    flex-direction: column;
+    width: 100%;
+    max-width: 210px; /* Match button width */
+    gap: 1.5rem;
   }
 
   .features-section {
     padding: 4rem 5%;
   }
 
-  .cards-grid {
-    justify-items: center;
+  .section-header {
+    margin-bottom: 3rem;
   }
 }
 
@@ -179,7 +217,7 @@
 }
 
 .sketchy-progress {
-  width: 200px;
+  width: min(200px, 80vw);
   height: 10px;
   border: 2px solid var(--accent-color);
   margin: 2rem auto;
