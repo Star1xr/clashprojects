@@ -4,9 +4,10 @@ import GetInTouchButton from '../Buttons/GetInTouchButton';
 
 interface ContactSectionProps {
   isVisible: boolean;
+  onContactClick: () => void;
 }
 
-const ContactSection: React.FC<ContactSectionProps> = ({ isVisible }) => {
+const ContactSection: React.FC<ContactSectionProps> = ({ isVisible, onContactClick }) => {
   return (
     <section className={`contact-section ${isVisible ? 'visible' : ''}`}>
       <div className="contact-sketchy-bg"></div>
@@ -17,7 +18,7 @@ const ContactSection: React.FC<ContactSectionProps> = ({ isVisible }) => {
           Join the clashprojects community and start your journey today.
         </p>
         <div className="contact-actions">
-          <GetInTouchButton text="Contact" />
+          <GetInTouchButton text="Contact" onClick={onContactClick} />
         </div>
         <div className="contact-info">
           <span>star1xx77ff@gmail.com</span>

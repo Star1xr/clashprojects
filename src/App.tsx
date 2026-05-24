@@ -9,6 +9,7 @@ import ProjectCard from './components/ProjectCard/ProjectCard';
 import ContactSection from './components/Contact/ContactSection';
 import LoginModal from './components/LoginModal/LoginModal';
 import Dashboard from './components/Dashboard/Dashboard';
+import ContactModal from './components/Contact/ContactModal';
 
 function App() {
   const [isDarkMode, setIsDarkMode] = useState(() => {
@@ -20,6 +21,7 @@ function App() {
   const [cardsVisible, setCardsVisible] = useState(false);
   const [contactVisible, setContactVisible] = useState(false);
   const [showLoginModal, setShowLoginModal] = useState(false);
+  const [showContactModal, setShowContactModal] = useState(false);
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -31,8 +33,7 @@ function App() {
   const cardsRef = useRef<HTMLDivElement>(null);
   const contactRef = useRef<HTMLDivElement>(null);
 
-  // Uses local .env for dev, and Vercel Settings for production
-  const GITHUB_CLIENT_ID = import.meta.env.VITE_GITHUB_CLIENT_ID || "Ov23liSLBfnFPAQdMkhC"; 
+  const GITHUB_CLIENT_ID = "Ov23liSLBfnFPAQdMkhC"; 
 
   useEffect(() => {
     const urlParams = new URLSearchParams(window.location.search);
@@ -46,21 +47,21 @@ function App() {
       fetchRealGithubData(savedToken);
     }
   }, []);
-const handleTokenExchange = async (code: string) => {
-  setIsLoading(true);
-  setError(null);
-  try {
-    // Use relative path for production (via Vercel proxy), or localhost for dev
-    const apiUrl = import.meta.env.PROD ? '/api/authenticate' : 'http://localhost:8000/authenticate';
 
-    const response = await fetch(apiUrl, {
-      method: 'POST',
-      headers: {
-        'Accept': 'application/json',
-        'Content-Type': 'application/json'
-      },
-      body: JSON.stringify({ code: code })
-    });      if (!response.ok) {
+  const handleTokenExchange = async (code: string) => {
+    setIsLoading(true);
+    setError(null);
+    try {
+      const response = await fetch('http://localhost:8000/authenticate', {
+        method: 'POST',
+        headers: {
+          'Accept': 'application/json',
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ code: code })
+      });
+
+      if (!response.ok) {
         const errorData = await response.json();
         throw new Error(errorData.detail || "Backend authentication failed");
       }
@@ -95,8 +96,8 @@ const handleTokenExchange = async (code: string) => {
         throw new Error(`GitHub Profile Error: ${userRes.status}`);
       }
 
-      // 2. Fetch Repos (Public Only)
-      const reposRes = await fetch('https://api.github.com/user/repos?type=public&sort=updated&per_page=100', {
+      // 2. Fetch Repos
+      const reposRes = await fetch('https://api.github.com/user/repos?sort=updated&per_page=100', {
         headers: { 
           'Authorization': `Bearer ${token}`,
           'Accept': 'application/json'
@@ -107,9 +108,9 @@ const handleTokenExchange = async (code: string) => {
         ? reposData.map((r: any) => ({ name: r.name, stars: r.stargazers_count }))
         : [];
 
-      // 3. Fetch Recent Commits (Public Only via Events for real-time accuracy)
-      console.log("Fetching latest public activity for:", user.login);
-      const eventsRes = await fetch(`https://api.github.com/users/${user.login}/events/public?per_page=50`, {
+      // 3. Fetch Recent Commits (via Events)
+      // Increase per_page to 100 to find real PushEvents in a busy stream
+      const eventsRes = await fetch(`https://api.github.com/users/${user.login}/events`, {
         headers: { 
           'Authorization': `Bearer ${token}`,
           'Accept': 'application/json'
@@ -117,43 +118,33 @@ const handleTokenExchange = async (code: string) => {
       });
       const eventsData = await eventsRes.json();
       
-      const pushEvents = Array.isArray(eventsData)
+      const realPushEvents = Array.isArray(eventsData)
         ? eventsData.filter((e: any) => e.type === "PushEvent")
         : [];
 
-      // Extract unique SHAs and fetch their messages if not in payload
-      const commits = await Promise.all(
-        pushEvents.slice(0, 5).map(async (e: any) => {
-          const repoFullName = e.repo?.name;
-          const commitInPayload = e.payload?.commits?.[0];
-          
-          let message = commitInPayload?.message;
-          let sha = commitInPayload?.sha || e.payload?.head;
+      const commits = realPushEvents.slice(0, 5).map((e: any) => {
+        const fullRepoName = e.repo?.name;
+        const commitsInPayload = e.payload?.commits || [];
+        const msg = commitsInPayload.length > 0 ? commitsInPayload[0].message : "Commit activity";
+        const sha = commitsInPayload.length > 0 ? commitsInPayload[0].sha : e.payload?.head;
 
-          // If message is missing or generic, try to fetch from the commit API
-          if (!message || message.length < 5) {
-             try {
-               const commitRes = await fetch(`https://api.github.com/repos/${repoFullName}/commits/${sha}`, {
-                 headers: { 'Authorization': `Bearer ${token}` }
-               });
-               const commitData = await commitRes.json();
-               message = commitData.commit?.message || message;
-             } catch (err) {
-               console.warn("Could not fetch extra commit detail", err);
-             }
-          }
+        return {
+          repo: fullRepoName?.split('/')[1] || fullRepoName || "unknown-repo",
+          msg: msg,
+          date: e.created_at,
+          url: sha ? `https://github.com/${fullRepoName}/commit/${sha}` : `https://github.com/${fullRepoName}`
+        };
+      });
 
-          return {
-            repo: repoFullName?.split('/')[1] || repoFullName,
-            msg: message?.split('\n')[0] || "Push activity",
-            date: e.created_at,
-            url: `https://github.com/${repoFullName}/commit/${sha}`
-          };
-        })
-      );
+      // Fallback if no PushEvents found
+      const finalCommits = commits.length > 0 ? commits : (Array.isArray(eventsData) ? eventsData.slice(0, 5).map((e: any) => ({
+        repo: e.repo?.name?.split('/')[1] || "Activity",
+        msg: `${e.type.replace('Event', '')} activity`,
+        date: e.created_at,
+        url: `https://github.com/${e.repo?.name}`
+      })) : []);
 
-      console.log("Final live commits:", commits);
-      setGithubData({ user, repos, commits: commits.length > 0 ? commits : [] });
+      setGithubData({ user, repos, commits: finalCommits });
       setIsLoggedIn(true);
       setError(null);
     } catch (err: any) {
@@ -242,11 +233,11 @@ const handleTokenExchange = async (code: string) => {
         <svg width="0" height="0" style={{ position: 'absolute', pointerEvents: 'none' }} aria-hidden="true">
           <filter id="sketchy">
             <feTurbulence type="fractalNoise" baseFrequency="0.05" numOctaves="3" result="noise" />
-            <feDisplacementMap in="SourceGraphic" in2="noise" scale="2" />
+            <feDisplacementMap in="SourceGraphic" in2="noise" scale="3" />
           </filter>
           <filter id="sketchy-sm">
             <feTurbulence type="fractalNoise" baseFrequency="0.08" numOctaves="3" result="noise" />
-            <feDisplacementMap in="SourceGraphic" in2="noise" scale="1" />
+            <feDisplacementMap in="SourceGraphic" in2="noise" scale="1.5" />
           </filter>
         </svg>
         <Dashboard 
@@ -267,7 +258,7 @@ const handleTokenExchange = async (code: string) => {
   }
 
   return (
-    <div className={`app-container ${showLoginModal ? 'blurred' : ''}`}>
+    <div className={`app-container ${(showLoginModal || showContactModal) ? 'blurred' : ''}`}>
       <svg width="0" height="0" style={{ position: 'absolute', pointerEvents: 'none' }} aria-hidden="true">
         <filter id="sketchy">
           <feTurbulence type="fractalNoise" baseFrequency="0.05" numOctaves="3" result="noise" />
@@ -280,9 +271,17 @@ const handleTokenExchange = async (code: string) => {
       </svg>
 
       <header className="app-header">
-        <div className="header-left"><div className="logo">clashprojects</div></div>
-        <div className="header-center"><SearchBar /></div>
-        <div className="header-right"><ThemeSwitch isDarkMode={isDarkMode} toggleTheme={toggleTheme} /></div>
+        <div className="header-left">
+          <div className="logo">clashprojects</div>
+        </div>
+        
+        <div className="header-center">
+          <SearchBar />
+        </div>
+
+        <div className="header-right">
+          <ThemeSwitch isDarkMode={isDarkMode} toggleTheme={toggleTheme} />
+        </div>
       </header>
 
       <main className="main-content">
@@ -319,10 +318,13 @@ const handleTokenExchange = async (code: string) => {
           </div>
         </section>
 
-        <div ref={contactRef}><ContactSection isVisible={contactVisible} /></div>
+        <div ref={contactRef}>
+          <ContactSection isVisible={contactVisible} onContactClick={() => setShowContactModal(true)} />
+        </div>
       </main>
 
       {showLoginModal && <LoginModal onClose={() => setShowLoginModal(false)} onGithubLogin={handleGithubLogin} />}
+      {showContactModal && <ContactModal onClose={() => setShowContactModal(false)} />}
       <footer className="app-footer"><p>&copy; 2026 clashprojects. All rights reserved.</p></footer>
     </div>
   );
