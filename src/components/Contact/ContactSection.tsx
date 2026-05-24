@@ -20,7 +20,7 @@ const ContactSection: React.FC<ContactSectionProps> = ({ isVisible }) => {
           <GetInTouchButton text="Contact" />
         </div>
         <div className="contact-info">
-          <span>hello@clashprojects.com</span>
+          <span>star1xx77ff@gmail.com</span>
           <span className="separator">•</span>
           <span>@clashprojects</span>
         </div>
