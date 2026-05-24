@@ -1,0 +1,132 @@
+.modal-overlay {
+  position: fixed;
+  inset: 0;
+  background-color: rgba(0, 0, 0, 0.4);
+  backdrop-filter: blur(8px);
+  z-index: 2000;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  animation: fadeIn 0.3s ease;
+}
+
+.login-modal {
+  position: relative;
+  width: 90%;
+  max-width: 400px;
+  background-color: var(--card-bg);
+  opacity: 0.6; /* 60% opacity as requested */
+  border-radius: 1rem;
+  padding: 2.5rem;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  z-index: 2001;
+  transition: opacity 0.3s ease;
+}
+
+.login-modal:hover {
+  opacity: 0.9; /* Slight increase on hover for better interaction */
+}
+
+.modal-sketchy-bg {
+  position: absolute;
+  inset: -5px;
+  border: 3px solid var(--accent-color);
+  border-radius: 1rem;
+  filter: url(#sketchy);
+  pointer-events: none;
+  z-index: -1;
+}
+
+.modal-content {
+  width: 100%;
+  text-align: center;
+}
+
+.modal-content h2 {
+  font-size: 2rem;
+  font-weight: 900;
+  margin-bottom: 0.5rem;
+  color: var(--text-color);
+}
+
+.modal-content p {
+  margin-bottom: 2rem;
+  opacity: 0.7;
+}
+
+.login-options {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  width: 100%;
+}
+
+.login-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.75rem;
+  padding: 0.8rem;
+  border: 2px solid var(--accent-color);
+  background: transparent;
+  color: var(--text-color);
+  border-radius: 0.5rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  font-family: inherit;
+}
+
+.login-btn svg {
+  width: 1.25rem;
+  height: 1.25rem;
+}
+
+.login-btn:hover:not(.disabled) {
+  background-color: var(--accent-color);
+  color: white;
+  transform: translateY(-2px);
+}
+
+.login-btn.disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+  border-color: #ccc;
+  color: #888;
+}
+
+.divider {
+  font-size: 0.8rem;
+  font-weight: 800;
+  opacity: 0.5;
+  margin: 0.5rem 0;
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+}
+
+.divider::before,
+.divider::after {
+  content: "";
+  flex: 1;
+  height: 1px;
+  background-color: currentColor;
+  opacity: 0.2;
+}
+
+.close-btn {
+  margin-top: 2rem;
+  background: transparent;
+  border: none;
+  text-decoration: underline;
+  cursor: pointer;
+  opacity: 0.6;
+  font-family: inherit;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}

@@ -1,0 +1,85 @@
+.contact-section {
+  position: relative;
+  width: 90%;
+  max-width: 800px;
+  margin: 6rem auto;
+  padding: 3rem 1.5rem;
+  opacity: 0;
+  transform: translateY(30px);
+  transition: all 1s ease;
+}
+
+.contact-section.visible {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+.contact-sketchy-bg {
+  position: absolute;
+  inset: 0;
+  background-color: var(--card-bg);
+  border: 3px solid var(--accent-color);
+  border-radius: 2rem;
+  filter: url(#sketchy);
+  box-shadow: 8px 10px 0px 0px var(--accent-color);
+  z-index: 1;
+}
+
+.contact-content {
+  position: relative;
+  z-index: 2;
+  text-align: center;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.contact-content h2 {
+  font-size: 3.5rem;
+  font-weight: 900;
+  margin-bottom: 1.5rem;
+  color: var(--text-color);
+}
+
+.contact-content p {
+  font-size: 1.25rem;
+  max-width: 600px;
+  margin-bottom: 3rem;
+  line-height: 1.6;
+  opacity: 0.8;
+}
+
+.contact-actions {
+  margin-bottom: 3rem;
+}
+
+.contact-info {
+  display: flex;
+  gap: 1.5rem;
+  font-weight: 600;
+  color: var(--accent-color);
+  font-size: 1.1rem;
+}
+
+.separator {
+  opacity: 0.5;
+}
+
+[data-theme='dark'] .contact-sketchy-bg {
+  box-shadow: 8px 10px 0px 0px rgba(0, 0, 0, 0.5);
+}
+
+@media (max-width: 768px) {
+  .contact-content h2 {
+    font-size: 2.5rem;
+  }
+  
+  .contact-info {
+    flex-direction: column;
+    gap: 0.5rem;
+  }
+  
+  .separator {
+    display: none;
+  }
+}

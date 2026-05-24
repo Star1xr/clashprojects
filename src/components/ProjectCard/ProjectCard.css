@@ -1,0 +1,114 @@
+.project-card {
+  position: relative;
+  width: 100%;
+  max-width: 350px;
+  min-height: 250px;
+  display: flex;
+  flex-direction: column;
+  opacity: 0;
+  transform: translateY(50px) rotate(5deg) scale(0.9);
+  transition: all 0.8s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+  transition-delay: calc(var(--index) * 0.15s);
+}
+
+.project-card.visible {
+  opacity: 1;
+  transform: translateY(0) rotate(0deg) scale(1);
+}
+
+.card-sketchy-bg {
+  position: absolute;
+  inset: 0;
+  background-color: var(--card-bg);
+  border: 3px solid var(--accent-color);
+  border-radius: 1rem;
+  filter: url(#sketchy);
+  box-shadow: 6px 8px 0px 0px var(--accent-color);
+  z-index: 1;
+}
+
+.project-card:nth-child(even) .card-sketchy-bg {
+  transform: rotate(-0.5deg);
+}
+
+.project-card:nth-child(odd) .card-sketchy-bg {
+  transform: rotate(0.5deg);
+}
+
+.card-content {
+  position: relative;
+  z-index: 2;
+  padding: 2.5rem;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  height: 100%;
+}
+
+.card-soon-badge {
+  position: absolute;
+  top: 1.25rem;
+  right: 1.25rem;
+  padding: 0.6rem 1.2rem;
+  font-size: 1rem;
+  font-weight: 900;
+  letter-spacing: 2px;
+  color: var(--accent-color);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transform: rotate(3deg);
+  transition: transform 0.3s ease;
+}
+
+.project-card:hover .card-soon-badge {
+  transform: rotate(0deg) scale(1.1);
+}
+
+.badge-sketchy-bg {
+  position: absolute;
+  inset: 0;
+  border: 2px solid var(--accent-color);
+  background-color: var(--card-bg);
+  filter: url(#sketchy-sm);
+  border-radius: 4px;
+  z-index: -1;
+}
+
+.card-icon {
+  font-size: 3rem;
+  margin-bottom: 1.5rem;
+  color: var(--accent-color);
+}
+
+.card-content h3 {
+  font-size: 1.5rem;
+  margin-bottom: 1rem;
+  color: var(--text-color);
+  font-weight: 800;
+}
+
+.card-content p {
+  font-size: 1rem;
+  line-height: 1.5;
+  opacity: 0.8;
+  color: var(--text-color);
+}
+
+.project-card:hover .card-sketchy-bg {
+  transform: translate(-2px, -2px) rotate(0deg);
+  box-shadow: 10px 12px 0px 0px var(--accent-color);
+}
+
+.project-card:hover {
+  transform: translateY(-10px);
+}
+
+[data-theme='dark'] .card-sketchy-bg {
+  box-shadow: 6px 8px 0px 0px rgba(0, 0, 0, 0.5);
+}
+
+[data-theme='dark'] .project-card:hover .card-sketchy-bg {
+  box-shadow: 10px 12px 0px 0px rgba(0, 0, 0, 0.6);
+}
