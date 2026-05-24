@@ -81,6 +81,25 @@ async def authenticate(request: AuthRequest):
         )
         return response.json()
 
+# Star Count Proxy: Uses Server-Side credentials to avoid rate limits
+@app.get("/stars")
+@app.get("/api/stars")
+async def get_stars():
+    async with httpx.AsyncClient() as client:
+        # Use Basic Auth with Client ID and Secret to get 5000 requests/hour
+        auth = None
+        if GITHUB_CLIENT_ID and GITHUB_CLIENT_SECRET:
+            auth = (GITHUB_CLIENT_ID, GITHUB_CLIENT_SECRET)
+        
+        response = await client.get(
+            "https://api.github.com/repos/Star1xr/clashprojects",
+            auth=auth
+        )
+        if response.status_code == 200:
+            return {"stargazers_count": response.json().get("stargazers_count", 0)}
+        else:
+            return {"stargazers_count": "--", "error": response.text}
+
 @app.get("/")
 @app.get("/health")
 @app.get("/api/health")

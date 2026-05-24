@@ -8,32 +8,23 @@ const GithubStarButton: React.FC = () => {
   useEffect(() => {
     const fetchStars = async () => {
       try {
-        // Use token from localStorage if available to bypass rate limits
-        const token = localStorage.getItem('github_token');
-        const headers: HeadersInit = {
-          'Accept': 'application/json'
-        };
-        if (token) {
-          headers['Authorization'] = `Bearer ${token}`;
-        }
-
-        const response = await fetch('https://api.github.com/repos/Star1xr/clashprojects?t=' + Date.now(), {
-          headers
-        });
+        // Call our OWN backend proxy to avoid GitHub's anonymous rate limits
+        // The backend uses your Secret to get a 5000 requests/hour limit
+        const apiUrl = import.meta.env.PROD ? '/api/stars' : 'http://localhost:8000/api/stars';
         
+        const response = await fetch(apiUrl + '?t=' + Date.now());
         const data = await response.json();
         
-        if (response.ok && data.stargazers_count !== undefined) {
+        if (data.stargazers_count !== undefined) {
           setStars(data.stargazers_count);
-        } else {
-          console.warn("GitHub API Star Fetch Error:", data.message || "Unknown error");
         }
       } catch (err) {
-        console.error("Failed to fetch star count:", err);
+        console.error("Failed to fetch star count via backend", err);
       }
     };
     
     fetchStars();
+    // High-frequency polling (every 5 seconds)
     const interval = setInterval(fetchStars, 5000);
     
     return () => clearInterval(interval);
