@@ -77,14 +77,14 @@
 }
 
 .hero-content h1 {
-  font-size: clamp(2.5rem, 8vw, 5rem);
+  font-size: 5rem; /* Restored to fixed size for PC/Tablet */
   line-height: 1;
   margin-bottom: 2rem;
   font-weight: 900;
 }
 
 .hero-content p {
-  font-size: clamp(1rem, 3vw, 1.5rem);
+  font-size: 1.5rem; /* Restored to fixed size for PC/Tablet */
   max-width: 700px;
   opacity: 0.8;
   margin-bottom: 3.5rem;
@@ -117,7 +117,7 @@
 }
 
 .section-header h2 {
-  font-size: clamp(2rem, 5vw, 3rem);
+  font-size: 3rem; /* Restored to fixed size for PC/Tablet */
   font-weight: 900;
   margin-bottom: 0.5rem;
 }
@@ -134,7 +134,7 @@
 .cards-grid {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
-  gap: clamp(1.5rem, 4vw, 3rem);
+  gap: 3rem; /* Restored fixed gap */
   width: 100%;
 }
 
@@ -145,23 +145,7 @@
   font-size: 0.9rem;
 }
 
-/* TABLET SUPPORT (up to 1024px) */
-@media (max-width: 1024px) {
-  .app-header {
-    padding: 0.75rem 3%;
-  }
-  
-  .hero-section {
-    padding: 4rem 5%;
-    min-height: auto;
-  }
-
-  .features-section {
-    padding: 6rem 5%;
-  }
-}
-
-/* MOBILE SUPPORT (up to 768px) */
+/* MOBILE SUPPORT ONLY (up to 768px) */
 @media (max-width: 768px) {
   .app-header {
     flex-wrap: wrap;
@@ -190,6 +174,14 @@
     padding: 3rem 5%;
   }
 
+  .hero-content h1 {
+    font-size: 2.5rem;
+  }
+
+  .hero-content p {
+    font-size: 1.1rem;
+  }
+
   .hero-actions {
     flex-direction: column;
     width: 100%;
@@ -203,6 +195,10 @@
 
   .section-header {
     margin-bottom: 3rem;
+  }
+
+  .section-header h2 {
+    font-size: 2.25rem;
   }
 }
 
