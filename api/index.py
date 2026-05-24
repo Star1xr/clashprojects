@@ -94,8 +94,8 @@ async def gitlab_login():
     if not GITLAB_CLIENT_ID or not GITLAB_REDIRECT_URI:
         raise HTTPException(status_code=500, detail="GitLab configuration missing")
     
-    # scope: read_user (profile), api (repos/commits)
-    url = f"https://gitlab.com/oauth/authorize?client_id={GITLAB_CLIENT_ID}&redirect_uri={GITLAB_REDIRECT_URI}&response_type=code&scope=read_user+api"
+    # scope: read_user (profile), read_api (repos/commits)
+    url = f"https://gitlab.com/oauth/authorize?client_id={GITLAB_CLIENT_ID}&redirect_uri={GITLAB_REDIRECT_URI}&response_type=code&scope=read_user+read_api"
     return RedirectResponse(url)
 
 @app.get("/auth/gitlab/callback")
