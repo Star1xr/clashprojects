@@ -1,9 +1,31 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import './GithubStarButton.css';
 
 const GithubStarButton: React.FC = () => {
+  const [stars, setStars] = useState<number | string>('--');
+  const repoUrl = "https://github.com/Star1xr/clashprojects";
+
+  useEffect(() => {
+    const fetchStars = async () => {
+      try {
+        const response = await fetch('https://api.github.com/repos/Star1xr/clashprojects');
+        const data = await response.json();
+        if (data.stargazers_count !== undefined) {
+          setStars(data.stargazers_count);
+        }
+      } catch (err) {
+        console.error("Failed to fetch star count", err);
+      }
+    };
+    fetchStars();
+  }, []);
+
+  const handleClick = () => {
+    window.open(repoUrl, '_blank', 'noopener,noreferrer');
+  };
+
   return (
-    <button className="github-star-button">
+    <button className="github-star-button" onClick={handleClick}>
       <div className="flex items-center">
         <svg
           className="github-icon"
@@ -30,7 +52,7 @@ const GithubStarButton: React.FC = () => {
             fillRule="evenodd"
           ></path>
         </svg>
-        <span className="star-count">11</span>
+        <span className="star-count">{stars}</span>
       </div>
     </button>
   );
