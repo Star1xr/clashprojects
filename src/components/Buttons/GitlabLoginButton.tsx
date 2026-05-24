@@ -1,4 +1,5 @@
 import React from 'react';
+import '../LoginModal/LoginModal.css';
 import './GitlabLoginButton.css';
 
 interface GitlabLoginButtonProps {
@@ -7,7 +8,7 @@ interface GitlabLoginButtonProps {
 
 const GitlabLoginButton: React.FC<GitlabLoginButtonProps> = ({ onClick }) => {
   return (
-    <button className="gitlab-login-button" onClick={onClick}>
+    <button className="login-btn gitlab" onClick={onClick}>
       <svg
         viewBox="0 0 24 24"
         fill="none"
