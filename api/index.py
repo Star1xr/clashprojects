@@ -32,7 +32,6 @@ SMTP_PASSWORD = os.getenv("SMTP_PASSWORD")
 
 async def send_support_email(name, email, message):
     if not SMTP_USER or not SMTP_PASSWORD:
-        print("Email credentials missing.")
         return False
     try:
         msg = MIMEMultipart()
@@ -46,25 +45,26 @@ async def send_support_email(name, email, message):
         server.send_message(msg)
         server.quit()
         return True
-    except Exception as e:
-        print(f"Failed to send email: {e}")
+    except Exception:
         return False
 
 class AuthRequest(BaseModel):
     code: str
 
+# DUAL ROUTING: Handles both /api and direct hits
 @app.post("/contact")
+@app.post("/api/contact")
 async def contact(
     name: str = Form(...),
     email: str = Form(...),
     message: str = Form(...),
     file: UploadFile = File(None)
 ):
-    print(f"Contact request: {name}")
     await send_support_email(name, email, message)
     return {"status": "success", "message": "Request received!"}
 
 @app.post("/authenticate")
+@app.post("/api/authenticate")
 async def authenticate(request: AuthRequest):
     if not GITHUB_CLIENT_ID or not GITHUB_CLIENT_SECRET:
         raise HTTPException(status_code=500, detail="GitHub credentials missing")
@@ -81,11 +81,11 @@ async def authenticate(request: AuthRequest):
         )
         return response.json()
 
-# Root check for Vercel health
 @app.get("/")
 @app.get("/health")
+@app.get("/api/health")
 async def health():
-    return {"status": "alive", "github_configured": bool(GITHUB_CLIENT_ID)}
+    return {"status": "alive"}
 
 if __name__ == "__main__":
     import uvicorn
