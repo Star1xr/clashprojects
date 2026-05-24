@@ -49,16 +49,17 @@ const handleTokenExchange = async (code: string) => {
   setIsLoading(true);
   setError(null);
   try {
-    // Calling our local Python backend
-    const response = await fetch('http://localhost:8000/authenticate', {
+    // Use relative path for production (via Vercel proxy), or localhost for dev
+    const apiUrl = import.meta.env.PROD ? '/api/authenticate' : 'http://localhost:8000/authenticate';
+
+    const response = await fetch(apiUrl, {
       method: 'POST',
       headers: {
         'Accept': 'application/json',
         'Content-Type': 'application/json'
       },
       body: JSON.stringify({ code: code })
-    });
-      if (!response.ok) {
+    });      if (!response.ok) {
         const errorData = await response.json();
         throw new Error(errorData.detail || "Backend authentication failed");
       }
