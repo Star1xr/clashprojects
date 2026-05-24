@@ -1,12 +1,14 @@
 import React from 'react';
 import './LoginModal.css';
+import GitlabLoginButton from '../Buttons/GitlabLoginButton';
 
 interface LoginModalProps {
   onClose: () => void;
   onGithubLogin: () => void;
+  onGitlabLogin: () => void;
 }
 
-const LoginModal: React.FC<LoginModalProps> = ({ onClose, onGithubLogin }) => {
+const LoginModal: React.FC<LoginModalProps> = ({ onClose, onGithubLogin, onGitlabLogin }) => {
   return (
     <div className="modal-overlay" onClick={onClose}>
       <div className="login-modal" onClick={(e) => e.stopPropagation()}>
@@ -25,9 +27,7 @@ const LoginModal: React.FC<LoginModalProps> = ({ onClose, onGithubLogin }) => {
             
             <div className="divider">OR</div>
             
-            <button className="login-btn disabled" disabled>
-              Continue with GitLab (soon!)
-            </button>
+            <GitlabLoginButton onClick={onGitlabLogin} />
             
             <button className="login-btn disabled" disabled>
               Continue with Bitbucket (soon!)

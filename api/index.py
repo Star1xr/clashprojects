@@ -4,6 +4,7 @@ from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
 from fastapi import FastAPI, HTTPException, UploadFile, File, Form
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import RedirectResponse
 from pydantic import BaseModel
 import httpx
 from dotenv import load_dotenv
@@ -23,6 +24,11 @@ app.add_middleware(
 
 GITHUB_CLIENT_ID = os.getenv("GITHUB_CLIENT_ID")
 GITHUB_CLIENT_SECRET = os.getenv("GITHUB_CLIENT_SECRET")
+
+GITLAB_CLIENT_ID = os.getenv("GITLAB_CLIENT_ID")
+GITLAB_CLIENT_SECRET = os.getenv("GITLAB_CLIENT_SECRET")
+GITLAB_REDIRECT_URI = os.getenv("GITLAB_REDIRECT_URI") # e.g. http://localhost:8000/api/auth/gitlab/callback
+FRONTEND_URL = os.getenv("FRONTEND_URL", "http://localhost:5173")
 
 # Email Settings
 SMTP_SERVER = os.getenv("SMTP_SERVER", "smtp.gmail.com")
@@ -80,6 +86,43 @@ async def authenticate(request: AuthRequest):
             },
         )
         return response.json()
+
+# GitLab OAuth Routes
+@app.get("/auth/gitlab/login")
+@app.get("/api/auth/gitlab/login")
+async def gitlab_login():
+    if not GITLAB_CLIENT_ID or not GITLAB_REDIRECT_URI:
+        raise HTTPException(status_code=500, detail="GitLab configuration missing")
+    
+    # scope: read_user (profile), api (repos/commits)
+    url = f"https://gitlab.com/oauth/authorize?client_id={GITLAB_CLIENT_ID}&redirect_uri={GITLAB_REDIRECT_URI}&response_type=code&scope=read_user+api"
+    return RedirectResponse(url)
+
+@app.get("/auth/gitlab/callback")
+@app.get("/api/auth/gitlab/callback")
+async def gitlab_callback(code: str):
+    if not GITLAB_CLIENT_ID or not GITLAB_CLIENT_SECRET or not GITLAB_REDIRECT_URI:
+        raise HTTPException(status_code=500, detail="GitLab credentials missing")
+
+    async with httpx.AsyncClient() as client:
+        response = await client.post(
+            "https://gitlab.com/oauth/token",
+            data={
+                "client_id": GITLAB_CLIENT_ID,
+                "client_secret": GITLAB_CLIENT_SECRET,
+                "code": code,
+                "grant_type": "authorization_code",
+                "redirect_uri": GITLAB_REDIRECT_URI,
+            },
+        )
+        data = response.json()
+        
+        if "access_token" not in data:
+            return RedirectResponse(f"{FRONTEND_URL}/?error=gitlab_auth_failed")
+            
+        access_token = data["access_token"]
+        # Redirect back to frontend with token and provider
+        return RedirectResponse(f"{FRONTEND_URL}/?token={access_token}&provider=gitlab")
 
 # Star Count Proxy: Uses Server-Side credentials to avoid rate limits
 @app.get("/stars")

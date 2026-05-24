@@ -25,10 +25,9 @@ function App() {
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [manualToken, setManualToken] = useState("");
   
-  // State for Real GitHub Data
-  const [githubData, setGithubData] = useState<any>(null);
+  // Unified State for Real Git Data (GitHub or GitLab)
+  const [gitData, setGitData] = useState<any>(null);
 
   const cardsRef = useRef<HTMLDivElement>(null);
   const contactRef = useRef<HTMLDivElement>(null);
@@ -38,128 +37,66 @@ function App() {
   useEffect(() => {
     const urlParams = new URLSearchParams(window.location.search);
     const code = urlParams.get('code');
-    const savedToken = localStorage.getItem('github_token');
+    const token = urlParams.get('token');
+    const provider = urlParams.get('provider');
+    
+    const savedToken = localStorage.getItem('git_token');
+    const savedProvider = localStorage.getItem('git_provider');
 
     if (code) {
-      handleTokenExchange(code);
+      // GitHub traditional code-exchange flow
+      handleGithubTokenExchange(code);
       window.history.replaceState({}, document.title, "/");
-    } else if (savedToken) {
-      fetchRealGithubData(savedToken);
+    } else if (token && provider) {
+      // GitLab or new unified direct-token flow
+      localStorage.setItem('git_token', token);
+      localStorage.setItem('git_provider', provider);
+      fetchRealGitData(token, provider);
+      window.history.replaceState({}, document.title, "/");
+    } else if (savedToken && savedProvider) {
+      fetchRealGitData(savedToken, savedProvider);
     }
   }, []);
-const handleTokenExchange = async (code: string) => {
-  setIsLoading(true);
-  setError(null);
-  try {
-    // Use relative path for production (Vercel), or localhost for dev
-    const apiUrl = import.meta.env.PROD ? '/api/authenticate' : 'http://localhost:8000/authenticate';
 
-    const response = await fetch(apiUrl, {
-      method: 'POST',
-      headers: {
-        'Accept': 'application/json',
-        'Content-Type': 'application/json'
-      },
-      body: JSON.stringify({ code: code })
-    });
-
-    if (!response.ok) {
-      const errorData = await response.json();
-      throw new Error(errorData.detail || "Backend authentication failed");
-    }
-
-    const data = await response.json();
-    if (data.access_token) {
-      localStorage.setItem('github_token', data.access_token);
-      fetchRealGithubData(data.access_token);
-    } else {
-      throw new Error("No access token returned from backend");
-    }
-  } catch (err: any) {
-    console.error("Auth Error:", err);
-    const isDev = !import.meta.env.PROD;
-    setError(isDev 
-      ? "Local Dev Error: Make sure your Python server is running on port 8000." 
-      : "Production Error: The Vercel backend is not responding. Check your environment variables.");
-    setIsLoading(false);
-  }
-};
-
-  const fetchRealGithubData = async (token: string) => {
+  const handleGithubTokenExchange = async (code: string) => {
     setIsLoading(true);
+    setError(null);
     try {
-      // 1. Fetch User Profile
-      const userRes = await fetch('https://api.github.com/user', {
-        headers: { 
-          'Authorization': `Bearer ${token}`,
-          'Accept': 'application/json'
-        }
+      const apiUrl = import.meta.env.PROD ? '/api/authenticate' : 'http://localhost:8000/authenticate';
+      const response = await fetch(apiUrl, {
+        method: 'POST',
+        headers: { 'Accept': 'application/json', 'Content-Type': 'application/json' },
+        body: JSON.stringify({ code: code })
       });
-      const user = await userRes.json();
-      if (!userRes.ok) {
-        localStorage.removeItem('github_token');
-        throw new Error(`GitHub Profile Error: ${userRes.status}`);
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.detail || "Backend authentication failed");
       }
 
-      // 2. Fetch Repos (Public Only)
-      const reposRes = await fetch('https://api.github.com/user/repos?type=public&sort=updated&per_page=100', {
-        headers: { 
-          'Authorization': `Bearer ${token}`,
-          'Accept': 'application/json'
-        }
-      });
-      const reposData = await reposRes.json();
-      const repos = Array.isArray(reposData) 
-        ? reposData.map((r: any) => ({ name: r.name, stars: r.stargazers_count }))
-        : [];
+      const data = await response.json();
+      if (data.access_token) {
+        localStorage.setItem('git_token', data.access_token);
+        localStorage.setItem('git_provider', 'github');
+        fetchRealGitData(data.access_token, 'github');
+      } else {
+        throw new Error("No access token returned from backend");
+      }
+    } catch (err: any) {
+      console.error("Auth Error:", err);
+      setError("Authentication failed. Please check your connection and try again.");
+      setIsLoading(false);
+    }
+  };
 
-      // 3. Fetch Recent Commits (Public Only via Events for real-time accuracy)
-      console.log("Fetching latest public activity for:", user.login);
-      const eventsRes = await fetch(`https://api.github.com/users/${user.login}/events/public?per_page=50`, {
-        headers: { 
-          'Authorization': `Bearer ${token}`,
-          'Accept': 'application/json'
-        }
-      });
-      const eventsData = await eventsRes.json();
-      
-      const pushEvents = Array.isArray(eventsData)
-        ? eventsData.filter((e: any) => e.type === "PushEvent")
-        : [];
-
-      // Extract unique SHAs and fetch their messages if not in payload
-      const commits = await Promise.all(
-        pushEvents.slice(0, 5).map(async (e: any) => {
-          const repoFullName = e.repo?.name;
-          const commitInPayload = e.payload?.commits?.[0];
-          
-          let message = commitInPayload?.message;
-          let sha = commitInPayload?.sha || e.payload?.head;
-
-          // If message is missing or generic, try to fetch from the commit API
-          if (!message || message.length < 5 || message === "Commit activity") {
-             try {
-               const commitRes = await fetch(`https://api.github.com/repos/${repoFullName}/commits/${sha}`, {
-                 headers: { 'Authorization': `Bearer ${token}` }
-               });
-               const commitData = await commitRes.json();
-               message = commitData.commit?.message || message;
-             } catch (err) {
-               console.warn("Could not fetch extra commit detail", err);
-             }
-          }
-
-          return {
-            repo: repoFullName?.split('/')[1] || repoFullName,
-            msg: message?.split('\n')[0] || "Push activity",
-            date: e.created_at,
-            url: `https://github.com/${repoFullName}/commit/${sha}`
-          };
-        })
-      );
-
-      console.log("Final live commits:", commits);
-      setGithubData({ user, repos, commits: commits.length > 0 ? commits : [] });
+  const fetchRealGitData = async (token: string, provider: string) => {
+    setIsLoading(true);
+    try {
+      if (provider === 'github') {
+        await fetchGithubData(token);
+      } else if (provider === 'gitlab') {
+        await fetchGitlabData(token);
+      }
       setIsLoggedIn(true);
       setError(null);
     } catch (err: any) {
@@ -168,6 +105,89 @@ const handleTokenExchange = async (code: string) => {
     } finally {
       setIsLoading(false);
     }
+  };
+
+  const fetchGithubData = async (token: string) => {
+    // 1. Fetch User Profile
+    const userRes = await fetch('https://api.github.com/user', {
+      headers: { 'Authorization': `Bearer ${token}`, 'Accept': 'application/json' }
+    });
+    const user = await userRes.json();
+    if (!userRes.ok) throw new Error("GitHub Profile Error");
+
+    // 2. Fetch Repos
+    const reposRes = await fetch('https://api.github.com/user/repos?type=public&sort=updated&per_page=100', {
+      headers: { 'Authorization': `Bearer ${token}`, 'Accept': 'application/json' }
+    });
+    const reposData = await reposRes.json();
+    const repos = Array.isArray(reposData) 
+      ? reposData.map((r: any) => ({ name: r.name, stars: r.stargazers_count }))
+      : [];
+
+    // 3. Fetch Recent Commits
+    const eventsRes = await fetch(`https://api.github.com/users/${user.login}/events/public?per_page=50`, {
+      headers: { 'Authorization': `Bearer ${token}`, 'Accept': 'application/json' }
+    });
+    const eventsData = await eventsRes.json();
+    const pushEvents = Array.isArray(eventsData) ? eventsData.filter((e: any) => e.type === "PushEvent") : [];
+
+    const commits = await Promise.all(
+      pushEvents.slice(0, 5).map(async (e: any) => {
+        const repoFullName = e.repo?.name;
+        const commitInPayload = e.payload?.commits?.[0];
+        return {
+          repo: repoFullName?.split('/')[1] || repoFullName,
+          msg: commitInPayload?.message?.split('\n')[0] || "Push activity",
+          date: e.created_at,
+          url: `https://github.com/${repoFullName}/commit/${commitInPayload?.sha || e.payload?.head}`
+        };
+      })
+    );
+
+    setGitData({ 
+      user: { login: user.login, avatar_url: user.avatar_url, bio: user.bio || "GitHub Developer" }, 
+      repos, 
+      commits 
+    });
+  };
+
+  const fetchGitlabData = async (token: string) => {
+    // 1. Fetch User Profile
+    const userRes = await fetch('https://gitlab.com/api/v4/user', {
+      headers: { 'Authorization': `Bearer ${token}` }
+    });
+    const user = await userRes.json();
+    if (!userRes.ok) throw new Error("GitLab Profile Error");
+
+    // 2. Fetch Projects
+    const projectsRes = await fetch('https://gitlab.com/api/v4/projects?membership=true&min_access_level=20&order_by=last_activity_at&per_page=100', {
+      headers: { 'Authorization': `Bearer ${token}` }
+    });
+    const projectsData = await projectsRes.json();
+    const repos = Array.isArray(projectsData) 
+      ? projectsData.map((p: any) => ({ name: p.name, stars: p.star_count }))
+      : [];
+
+    // 3. Fetch Events
+    const eventsRes = await fetch('https://gitlab.com/api/v4/events?action=pushed&per_page=20', {
+      headers: { 'Authorization': `Bearer ${token}` }
+    });
+    const eventsData = await eventsRes.json();
+    
+    const commits = Array.isArray(eventsData) 
+      ? eventsData.slice(0, 5).map((e: any) => ({
+          repo: e.project_id.toString(),
+          msg: e.push_data?.commit_title || "Pushed to GitLab",
+          date: e.created_at,
+          url: `https://gitlab.com/dashboard/projects`
+        }))
+      : [];
+
+    setGitData({ 
+      user: { login: user.username, avatar_url: user.avatar_url, bio: user.bio || "GitLab Developer" }, 
+      repos, 
+      commits 
+    });
   };
 
   useEffect(() => {
@@ -214,26 +234,21 @@ const handleTokenExchange = async (code: string) => {
     window.location.href = `${rootUrl}?${qs.toString()}`;
   };
 
+  const handleGitlabLogin = () => {
+    // Redirect to backend login route which will then redirect to GitLab
+    const apiUrl = import.meta.env.PROD ? '/api/auth/gitlab/login' : 'http://localhost:8000/auth/gitlab/login';
+    window.location.href = apiUrl;
+  };
+
   if (isLoading || error) {
     return (
       <div className="app-container loading-view">
         <div className="loading-sketchy" style={{ maxWidth: '500px' }}>
-          <h1>{error ? "Backend Check" : "Syncing with GitHub..."}</h1>
+          <h1>{error ? "Backend Check" : "Syncing with Git..."}</h1>
           {error && (
             <div style={{ textAlign: 'left', background: 'rgba(0,0,0,0.05)', padding: '1.5rem', borderRadius: '1rem', marginTop: '1rem' }}>
               <p style={{ fontSize: '0.9rem', marginBottom: '1.5rem' }}>{error}</p>
-              <label style={{ fontSize: '0.8rem', fontWeight: '800' }}>OR TEST WITH PERSONAL ACCESS TOKEN:</label>
-              <div style={{ display: 'flex', gap: '0.5rem', marginTop: '0.5rem' }}>
-                <input 
-                  type="password" 
-                  placeholder="Paste ghp_token here" 
-                  value={manualToken}
-                  onChange={(e) => setManualToken(e.target.value)}
-                  style={{ flex: 1, padding: '0.5rem', borderRadius: '4px', border: '1px solid var(--accent-color)' }}
-                />
-                <button onClick={() => fetchRealGithubData(manualToken)} className="get-in-touch-button" style={{ height: 'auto', padding: '0.5rem 1rem' }}>Go</button>
-              </div>
-              <p style={{ fontSize: '0.7rem', marginTop: '1rem', opacity: 0.6 }}>* Generate a token in GitHub Settings &gt; Developer Settings &gt; Personal Access Tokens (classic).</p>
+              <button onClick={() => window.location.reload()} className="get-in-touch-button">Retry</button>
             </div>
           )}
           {!error && <div className="sketchy-progress"></div>}
@@ -242,7 +257,7 @@ const handleTokenExchange = async (code: string) => {
     );
   }
 
-  if (isLoggedIn && githubData) {
+  if (isLoggedIn && gitData) {
     return (
       <div className="app-container">
         <svg width="0" height="0" style={{ position: 'absolute', pointerEvents: 'none' }} aria-hidden="true">
@@ -256,15 +271,16 @@ const handleTokenExchange = async (code: string) => {
           </filter>
         </svg>
         <Dashboard 
-          userData={githubData.user}
-          repos={githubData.repos}
-          commits={githubData.commits}
+          userData={gitData.user}
+          repos={gitData.repos}
+          commits={gitData.commits}
           isDarkMode={isDarkMode}
           toggleTheme={toggleTheme}
           onLogout={() => { 
             setIsLoggedIn(false); 
-            setGithubData(null); 
-            window.localStorage.removeItem('github_token');
+            setGitData(null); 
+            window.localStorage.removeItem('git_token');
+            window.localStorage.removeItem('git_provider');
             window.location.reload();
           }} 
         />
@@ -289,14 +305,8 @@ const handleTokenExchange = async (code: string) => {
         <div className="header-left">
           <div className="logo">clashprojects</div>
         </div>
-        
-        <div className="header-center">
-          <SearchBar />
-        </div>
-
-        <div className="header-right">
-          <ThemeSwitch isDarkMode={isDarkMode} toggleTheme={toggleTheme} />
-        </div>
+        <div className="header-center"><SearchBar /></div>
+        <div className="header-right"><ThemeSwitch isDarkMode={isDarkMode} toggleTheme={toggleTheme} /></div>
       </header>
 
       <main className="main-content">
@@ -338,7 +348,13 @@ const handleTokenExchange = async (code: string) => {
         </div>
       </main>
 
-      {showLoginModal && <LoginModal onClose={() => setShowLoginModal(false)} onGithubLogin={handleGithubLogin} />}
+      {showLoginModal && (
+        <LoginModal 
+          onClose={() => setShowLoginModal(false)} 
+          onGithubLogin={handleGithubLogin} 
+          onGitlabLogin={handleGitlabLogin}
+        />
+      )}
       {showContactModal && <ContactModal onClose={() => setShowContactModal(false)} />}
       <footer className="app-footer"><p>&copy; 2026 clashprojects. All rights reserved.</p></footer>
     </div>
