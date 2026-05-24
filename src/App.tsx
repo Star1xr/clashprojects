@@ -31,7 +31,8 @@ function App() {
   const cardsRef = useRef<HTMLDivElement>(null);
   const contactRef = useRef<HTMLDivElement>(null);
 
-  const GITHUB_CLIENT_ID = "Ov23liSLBfnFPAQdMkhC"; 
+  // Uses local .env for dev, and Vercel Settings for production
+  const GITHUB_CLIENT_ID = import.meta.env.VITE_GITHUB_CLIENT_ID || "Ov23liSLBfnFPAQdMkhC"; 
 
   useEffect(() => {
     const urlParams = new URLSearchParams(window.location.search);
