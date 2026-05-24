@@ -135,11 +135,28 @@ function App() {
       pushEvents.slice(0, 5).map(async (e: any) => {
         const repoFullName = e.repo?.name;
         const commitInPayload = e.payload?.commits?.[0];
+        
+        let message = commitInPayload?.message;
+        let sha = commitInPayload?.sha || e.payload?.head;
+
+        // If message is missing or generic, try to fetch from the commit API for accuracy
+        if (!message || message.length < 5 || message === "Commit activity") {
+           try {
+             const commitRes = await fetch(`https://api.github.com/repos/${repoFullName}/commits/${sha}`, {
+               headers: { 'Authorization': `Bearer ${token}` }
+             });
+             const commitData = await commitRes.json();
+             message = commitData.commit?.message || message;
+           } catch (err) {
+             console.warn("Could not fetch extra commit detail", err);
+           }
+        }
+
         return {
           repo: repoFullName?.split('/')[1] || repoFullName,
-          msg: commitInPayload?.message?.split('\n')[0] || "Push activity",
+          msg: message?.split('\n')[0] || "Push activity",
           date: e.created_at,
-          url: `https://github.com/${repoFullName}/commit/${commitInPayload?.sha || e.payload?.head}`
+          url: `https://github.com/${repoFullName}/commit/${sha}`
         };
       })
     );
@@ -174,14 +191,26 @@ function App() {
     });
     const eventsData = await eventsRes.json();
     
-    const commits = Array.isArray(eventsData) 
-      ? eventsData.slice(0, 5).map((e: any) => ({
-          repo: e.project_id.toString(),
-          msg: e.push_data?.commit_title || "Pushed to GitLab",
-          date: e.created_at,
-          url: `https://gitlab.com/dashboard/projects`
-        }))
-      : [];
+    // Fetch project names for GitLab events as well for better UI
+    const commits = await Promise.all((Array.isArray(eventsData) ? eventsData.slice(0, 5) : []).map(async (e: any) => {
+      let repoName = e.project_id.toString();
+      try {
+        const projectRes = await fetch(`https://gitlab.com/api/v4/projects/${e.project_id}`, {
+          headers: { 'Authorization': `Bearer ${token}` }
+        });
+        const projectData = await projectRes.json();
+        repoName = projectData.name || repoName;
+      } catch (err) {
+        console.warn("Could not fetch GitLab project name", err);
+      }
+
+      return {
+        repo: repoName,
+        msg: e.push_data?.commit_title || "Pushed to GitLab",
+        date: e.created_at,
+        url: `https://gitlab.com/dashboard/projects`
+      };
+    }));
 
     setGitData({ 
       user: { login: user.username, avatar_url: user.avatar_url, bio: user.bio || "GitLab Developer" }, 
